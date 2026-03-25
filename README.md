@@ -1,133 +1,244 @@
 # AmneziaWG API
 
-Лёгкий API для управления клиентами `AmneziaWG` через `SSH`.
+Лёгкий API для управления `AmneziaWG` через `SSH`.
 
 Что умеет:
 
-- создавать клиента;
-- удалять клиента;
-- получать список клиентов;
-- хранить несколько серверов в `SQLite`;
-- защищать API через `Bearer`-токен;
+- добавлять серверы;
+- показывать список серверов и их доступность;
+- создавать клиентов;
+- удалять клиентов;
+- показывать список клиентов;
 - отдавать ссылки на скачивание `.conf` и `.png`.
 
 ## Стек
 
 - `FastAPI`
 - `SQLite`
-- существующий `SSH`-раннер поверх `manage_amneziawg.sh`
+- `SSH` к серверам с установленным `manage_amneziawg.sh`
 
-## Быстрый старт
+## Переменные окружения
 
-1. Установить зависимости:
+Пример `.env`:
+
+```env
+API_HOST=127.0.0.1
+API_PORT=8000
+API_TOKEN=1
+DATABASE_PATH=./data/app.db
+STORAGE_DIR=./storage
+```
+
+## Локальный запуск
+
+Установить зависимости:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Создать `.env` на основе примера:
+Запустить API:
 
 ```bash
-cp .env.example .env
+uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-3. Заполнить главное:
+## Docker Compose
 
-- `API_TOKEN`
-- при желании `API_HOST`
-- при желании `API_PORT`
-
-4. Запустить API:
+Сборка и запуск:
 
 ```bash
-uvicorn app:app --reload
+docker compose build
+docker compose up -d
 ```
-
-## Что лежит в `.env`
-
-Туда вынесено только важное:
-
-- `API_HOST`
-- `API_PORT`
-- `API_TOKEN`
-- `DATABASE_PATH`
-- `STORAGE_DIR`
-
-Параметры SSH-серверов лежат в базе, а не в `.env`.
 
 ## Авторизация
 
-Во все запросы нужно передавать заголовок:
+Во всех запросах нужен заголовок:
 
 ```text
 Authorization: Bearer <API_TOKEN>
 ```
 
-## Эндпоинты
+## Боевые примеры
+
+Ниже примеры для домена:
+
+```text
+https://awg.twzrds.ru
+```
 
 ### 1. Добавить сервер
 
-`POST /api/servers`
+```bash
+curl -X POST https://awg.twzrds.ru/api/servers \
+  -H "Authorization: Bearer 1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "main-server",
+    "host": "2.27.30.2",
+    "user": "root",
+    "port": 22,
+    "identity_file": null,
+    "manage_script_path": "/root/awg/manage_amneziawg.sh",
+    "strict_host_key_checking": "accept-new"
+  }'
+```
 
-Пример тела:
+Пример ответа:
 
 ```json
 {
+  "id": 1,
   "name": "main-server",
   "host": "2.27.30.2",
   "user": "root",
   "port": 22,
   "identity_file": null,
   "manage_script_path": "/root/awg/manage_amneziawg.sh",
-  "strict_host_key_checking": "accept-new"
+  "strict_host_key_checking": "accept-new",
+  "created_at": "2026-03-25 08:43:45",
+  "is_reachable": true,
+  "status": "online",
+  "status_label": "Доступен"
 }
 ```
 
-### 2. Получить список серверов
+### 2. Создать клиента
 
-`GET /api/servers`
+```bash
+curl -X POST https://awg.twzrds.ru/api/clients \
+  -H "Authorization: Bearer 1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "server_id": 1,
+    "client_name": "artem",
+    "expires": "7d"
+  }'
+```
 
-### 3. Получить список клиентов сервера
-
-`GET /api/clients/{server_id}`
-
-### 4. Создать клиента
-
-`POST /api/clients`
-
-Пример тела:
+Пример ответа:
 
 ```json
 {
+  "succsess": true,
   "server_id": 1,
-  "client_name": "my_phone",
-  "expires": "7d"
+  "client_name": "artem",
+  "files": {
+    "conf_url": "http://awg.twzrds.ru/api/files/d7476d08dda246f19f857df0ac612135",
+    "png_url": "http://awg.twzrds.ru/api/files/74f93f8b78ed48378db1933ae4a8daf0"
+  }
 }
 ```
 
-API в ответе вернёт:
+### 3. Получить список серверов
 
-- результат выполнения команды;
-- ссылку на скачивание `.conf`;
-- ссылку на скачивание `.png`.
+```bash
+curl -H "Authorization: Bearer 1" \
+  https://awg.twzrds.ru/api/servers
+```
+
+Пример ответа:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "main-server",
+    "host": "2.27.30.2",
+    "user": "root",
+    "port": 22,
+    "identity_file": null,
+    "manage_script_path": "/root/awg/manage_amneziawg.sh",
+    "strict_host_key_checking": "accept-new",
+    "created_at": "2026-03-25 08:43:45",
+    "is_reachable": true,
+    "status": "online",
+    "status_label": "Доступен"
+  }
+]
+```
+
+### 4. Получить список клиентов
+
+```bash
+curl -H "Authorization: Bearer 1" \
+  https://awg.twzrds.ru/api/clients/1
+```
+
+Пример ответа:
+
+```json
+{
+  "succsess": true,
+  "server_id": 1,
+  "count": 3,
+  "clients": [
+    {
+      "name": "artem",
+      "has_conf": true,
+      "has_qr": true,
+      "status": "no_handshake",
+      "status_label": "Нет handshake",
+      "expires_in": "6д 23ч"
+    },
+    {
+      "name": "my_laptop",
+      "has_conf": true,
+      "has_qr": true,
+      "status": "no_handshake",
+      "status_label": "Нет handshake",
+      "expires_in": null
+    },
+    {
+      "name": "my_phone",
+      "has_conf": true,
+      "has_qr": true,
+      "status": "no_handshake",
+      "status_label": "Нет handshake",
+      "expires_in": null
+    }
+  ]
+}
+```
 
 ### 5. Удалить клиента
 
-`DELETE /api/clients/{server_id}/{client_name}`
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer 1" \
+  https://awg.twzrds.ru/api/clients/1/artem
+```
 
-### 6. Скачать файл
+Пример ответа:
 
-`GET /api/files/{artifact_id}`
+```json
+{
+  "succsess": true,
+  "server_id": 1,
+  "client_name": "artem"
+}
+```
 
-## Пример сценария
+### 6. Скачать `.conf`
 
-1. Добавить сервер.
-2. Вызвать создание клиента.
-3. Забрать из ответа `conf_url` и `png_url`.
-4. Скачать оба файла обычным HTTP-запросом.
+```bash
+curl -L -H "Authorization: Bearer 1" \
+  "https://awg.twzrds.ru/api/files/d7476d08dda246f19f857df0ac612135" \
+  -o artem.conf
+```
+
+### 7. Скачать `.png`
+
+```bash
+curl -L -H "Authorization: Bearer 1" \
+  "https://awg.twzrds.ru/api/files/74f93f8b78ed48378db1933ae4a8daf0" \
+  -o artem.png
+```
 
 ## Примечания
 
-- API хранит файлы локально в `STORAGE_DIR`.
-- База создаётся автоматически.
-- Для теста сейчас используется простой `Bearer`-токен без пользователей и ролей.
+- домен указывается в `Caddyfile`, не в `.env`;
+- серверы хранятся в `SQLite`;
+- при удалении клиента API чистит локальные файлы и записи в БД;
+- `succsess` оставлен в таком виде специально, чтобы не ломать текущий контракт API.
