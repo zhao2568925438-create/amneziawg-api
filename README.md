@@ -220,7 +220,31 @@ curl -X DELETE \
 }
 ```
 
-### 6. Скачать `.conf`
+### 6. Продлить подписку клиента
+
+```bash
+curl -X PATCH https://awg.twzrds.ru/api/clients/subscription \
+  -H "Authorization: Bearer 1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "server_id": 1,
+    "client_name": "artem",
+    "expires": "30d"
+  }'
+```
+
+Пример ответа:
+
+```json
+{
+  "succsess": true,
+  "server_id": 1,
+  "client_name": "artem",
+  "expires": "30d"
+}
+```
+
+### 7. Скачать `.conf`
 
 ```bash
 curl -L -H "Authorization: Bearer 1" \
@@ -228,7 +252,7 @@ curl -L -H "Authorization: Bearer 1" \
   -o artem.conf
 ```
 
-### 7. Скачать `.png`
+### 8. Скачать `.png`
 
 ```bash
 curl -L -H "Authorization: Bearer 1" \

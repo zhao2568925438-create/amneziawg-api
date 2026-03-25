@@ -11,6 +11,8 @@ from amnezia_api.api.schemas import (
     ClientCreate,
     ClientCreateResponse,
     ClientDeleteResponse,
+    ClientExtend,
+    ClientExtendResponse,
     ClientListItem,
     ClientListResponse,
     ServerCreate,
@@ -139,6 +141,28 @@ def create_client(
             conf_url=build_artifact_url(request, conf_id),
             png_url=build_artifact_url(request, png_id),
         ),
+    )
+
+
+@app.patch("/api/clients/subscription", response_model=ClientExtendResponse)
+def extend_client_subscription(
+    payload: ClientExtend,
+    _: None = Depends(auth_dependency),
+) -> ClientExtendResponse | JSONResponse:
+    manager = get_manager(payload.server_id)
+    try:
+        manager.extend_client(payload.client_name, payload.expires)
+    except AmneziaWGError as exc:
+        error_text = str(exc)
+        if "не найден" in error_text.lower():
+            return api_error(404, error_text)
+        return api_error(400, error_text)
+
+    return ClientExtendResponse(
+        succsess=True,
+        server_id=payload.server_id,
+        client_name=payload.client_name,
+        expires=payload.expires,
     )
 
 

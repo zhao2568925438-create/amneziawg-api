@@ -43,6 +43,12 @@ class ClientCreate(BaseModel):
     expires: str | None = None
 
 
+class ClientExtend(BaseModel):
+    server_id: int
+    client_name: str = Field(min_length=1)
+    expires: str = Field(min_length=2)
+
+
 class ClientDeleteResponse(BaseModel):
     succsess: bool
     server_id: int
@@ -59,6 +65,13 @@ class ClientCreateResponse(BaseModel):
     server_id: int
     client_name: str
     files: ArtifactLinks
+
+
+class ClientExtendResponse(BaseModel):
+    succsess: bool
+    server_id: int
+    client_name: str
+    expires: str
 
 
 class ClientListResponse(BaseModel):

@@ -44,6 +44,9 @@ class AmneziaWGManager:
         remote_command = self._build_remote_command(["remove", name])
         return self._run_remote_text(f"printf 'y\\n' | {remote_command}")
 
+    def extend_client(self, name: str, duration: str) -> str:
+        return self._run_manage(["extend", name, duration])
+
     def fetch_client_bundle(self, name: str, output_dir: str | Path) -> tuple[Path, Path]:
         remote_config_path = self.find_client_config_path(name)
         config_text = self.read_remote_file(remote_config_path)
