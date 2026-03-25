@@ -46,7 +46,7 @@ class ClientCreate(BaseModel):
 class ClientExtend(BaseModel):
     server_id: int
     client_name: str = Field(min_length=1)
-    expires: str = Field(min_length=2)
+    prolong_until: str = Field(min_length=10)
 
 
 class ClientDeleteResponse(BaseModel):
@@ -71,7 +71,9 @@ class ClientExtendResponse(BaseModel):
     succsess: bool
     server_id: int
     client_name: str
-    expires: str
+    prolong_until: str
+    applied_duration: str
+    expires_at: str
 
 
 class ClientListResponse(BaseModel):

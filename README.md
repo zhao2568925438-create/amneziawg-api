@@ -9,6 +9,7 @@
 - создавать клиентов;
 - удалять клиентов;
 - показывать список клиентов;
+- продлевать подписку клиента по дате;
 - отдавать ссылки на скачивание `.conf` и `.png`.
 
 ## Стек
@@ -24,7 +25,7 @@
 ```env
 API_HOST=127.0.0.1
 API_PORT=8000
-API_TOKEN=1
+API_TOKEN=TEST
 DATABASE_PATH=./data/app.db
 STORAGE_DIR=./storage
 ```
@@ -60,19 +61,25 @@ docker compose up -d
 Authorization: Bearer <API_TOKEN>
 ```
 
-## Боевые примеры
+## Локальные примеры запросов
 
-Ниже примеры для домена:
+Ниже примеры для локального запуска:
 
 ```text
-https://awg.twzrds.ru
+http://127.0.0.1:8000
+```
+
+Токен:
+
+```text
+TEST
 ```
 
 ### 1. Добавить сервер
 
 ```bash
-curl -X POST https://awg.twzrds.ru/api/servers \
-  -H "Authorization: Bearer 1" \
+curl -X POST http://127.0.0.1:8000/api/servers \
+  -H "Authorization: Bearer TEST" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "main-server",
@@ -104,15 +111,22 @@ curl -X POST https://awg.twzrds.ru/api/servers \
 }
 ```
 
-### 2. Создать клиента
+### 2. Получить список серверов
 
 ```bash
-curl -X POST https://awg.twzrds.ru/api/clients \
-  -H "Authorization: Bearer 1" \
+curl -H "Authorization: Bearer TEST" \
+  http://127.0.0.1:8000/api/servers
+```
+
+### 3. Создать клиента
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/clients \
+  -H "Authorization: Bearer TEST" \
   -H "Content-Type: application/json" \
   -d '{
     "server_id": 1,
-    "client_name": "artem",
+    "client_name": "egor",
     "expires": "7d"
   }'
 ```
@@ -123,47 +137,19 @@ curl -X POST https://awg.twzrds.ru/api/clients \
 {
   "succsess": true,
   "server_id": 1,
-  "client_name": "artem",
+  "client_name": "egor",
   "files": {
-    "conf_url": "http://awg.twzrds.ru/api/files/d7476d08dda246f19f857df0ac612135",
-    "png_url": "http://awg.twzrds.ru/api/files/74f93f8b78ed48378db1933ae4a8daf0"
+    "conf_url": "http://127.0.0.1:8000/api/files/CONF_FILE_ID",
+    "png_url": "http://127.0.0.1:8000/api/files/PNG_FILE_ID"
   }
 }
-```
-
-### 3. Получить список серверов
-
-```bash
-curl -H "Authorization: Bearer 1" \
-  https://awg.twzrds.ru/api/servers
-```
-
-Пример ответа:
-
-```json
-[
-  {
-    "id": 1,
-    "name": "main-server",
-    "host": "2.27.30.2",
-    "user": "root",
-    "port": 22,
-    "identity_file": null,
-    "manage_script_path": "/root/awg/manage_amneziawg.sh",
-    "strict_host_key_checking": "accept-new",
-    "created_at": "2026-03-25 08:43:45",
-    "is_reachable": true,
-    "status": "online",
-    "status_label": "Доступен"
-  }
-]
 ```
 
 ### 4. Получить список клиентов
 
 ```bash
-curl -H "Authorization: Bearer 1" \
-  https://awg.twzrds.ru/api/clients/1
+curl -H "Authorization: Bearer TEST" \
+  http://127.0.0.1:8000/api/clients/1
 ```
 
 Пример ответа:
@@ -175,61 +161,35 @@ curl -H "Authorization: Bearer 1" \
   "count": 3,
   "clients": [
     {
-      "name": "artem",
+      "name": "egor",
       "has_conf": true,
       "has_qr": true,
       "status": "no_handshake",
       "status_label": "Нет handshake",
       "expires_in": "6д 23ч"
-    },
-    {
-      "name": "my_laptop",
-      "has_conf": true,
-      "has_qr": true,
-      "status": "no_handshake",
-      "status_label": "Нет handshake",
-      "expires_in": null
-    },
-    {
-      "name": "my_phone",
-      "has_conf": true,
-      "has_qr": true,
-      "status": "no_handshake",
-      "status_label": "Нет handshake",
-      "expires_in": null
     }
   ]
 }
 ```
 
-### 5. Удалить клиента
+### 5. Продлить подписку клиента
 
-```bash
-curl -X DELETE \
-  -H "Authorization: Bearer 1" \
-  https://awg.twzrds.ru/api/clients/1/artem
+Формат даты:
+
+```text
+ДД.ММ.ГГГГ
 ```
 
-Пример ответа:
-
-```json
-{
-  "succsess": true,
-  "server_id": 1,
-  "client_name": "artem"
-}
-```
-
-### 6. Продлить подписку клиента
+Успешный пример:
 
 ```bash
-curl -X PATCH https://awg.twzrds.ru/api/clients/subscription \
-  -H "Authorization: Bearer 1" \
+curl -X PATCH http://127.0.0.1:8000/api/clients/subscription \
+  -H "Authorization: Bearer TEST" \
   -H "Content-Type: application/json" \
   -d '{
     "server_id": 1,
-    "client_name": "artem",
-    "expires": "30d"
+    "client_name": "egor",
+    "prolong_until": "18.04.2026"
   }'
 ```
 
@@ -239,25 +199,87 @@ curl -X PATCH https://awg.twzrds.ru/api/clients/subscription \
 {
   "succsess": true,
   "server_id": 1,
-  "client_name": "artem",
-  "expires": "30d"
+  "client_name": "egor",
+  "prolong_until": "18.04.2026",
+  "applied_duration": "416h",
+  "expires_at": "2026-04-19 00:30:25"
+}
+```
+
+Если новая дата меньше текущей подписки:
+
+```bash
+curl -X PATCH http://127.0.0.1:8000/api/clients/subscription \
+  -H "Authorization: Bearer TEST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "server_id": 1,
+    "client_name": "egor",
+    "prolong_until": "10.04.2026"
+  }'
+```
+
+Пример ошибки:
+
+```json
+{
+  "succsess": false,
+  "error": "У клиента уже есть подписка до 2026-04-19 00:30:25. Новая дата должна быть больше текущей."
+}
+```
+
+### 6. Удалить клиента
+
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer TEST" \
+  http://127.0.0.1:8000/api/clients/1/egor
+```
+
+Пример ответа:
+
+```json
+{
+  "succsess": true,
+  "server_id": 1,
+  "client_name": "egor"
 }
 ```
 
 ### 7. Скачать `.conf`
 
 ```bash
-curl -L -H "Authorization: Bearer 1" \
-  "https://awg.twzrds.ru/api/files/d7476d08dda246f19f857df0ac612135" \
-  -o artem.conf
+curl -L -H "Authorization: Bearer TEST" \
+  "http://127.0.0.1:8000/api/files/CONF_FILE_ID" \
+  -o egor.conf
 ```
 
 ### 8. Скачать `.png`
 
 ```bash
-curl -L -H "Authorization: Bearer 1" \
-  "https://awg.twzrds.ru/api/files/74f93f8b78ed48378db1933ae4a8daf0" \
-  -o artem.png
+curl -L -H "Authorization: Bearer TEST" \
+  "http://127.0.0.1:8000/api/files/PNG_FILE_ID" \
+  -o egor.png
+```
+
+## Боевые примеры
+
+Если API стоит за доменом, просто меняешь:
+
+```text
+http://127.0.0.1:8000
+```
+
+на:
+
+```text
+https://awg.twzrds.ru
+```
+
+Например:
+
+```bash
+curl -H "Authorization: Bearer 1" https://awg.twzrds.ru/api/servers
 ```
 
 ## Примечания
@@ -265,4 +287,5 @@ curl -L -H "Authorization: Bearer 1" \
 - домен указывается в `Caddyfile`, не в `.env`;
 - серверы хранятся в `SQLite`;
 - при удалении клиента API чистит локальные файлы и записи в БД;
-- `succsess` оставлен в таком виде специально, чтобы не ломать текущий контракт API.
+- `succsess` оставлен в таком виде специально, чтобы не ломать текущий контракт API;
+- в корне проекта лежит актуальный `manage_amneziawg.sh`, скачанный с VPN-сервера.

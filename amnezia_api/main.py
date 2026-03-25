@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import uuid
 from pathlib import Path
 
@@ -25,6 +26,12 @@ from amnezia_api.repositories.artifact_repository import ArtifactRepository
 from amnezia_api.repositories.server_repository import ServerRepository
 from amnezia_api.services.amneziawg_manager import AmneziaWGError, AmneziaWGManager, SSHConfig
 from amnezia_api.services.artifact_service import ArtifactService
+from amnezia_api.services.subscription_service import (
+    SubscriptionError,
+    calculate_extension,
+    format_timestamp,
+    parse_prolong_until,
+)
 
 
 settings = get_settings()
@@ -151,18 +158,33 @@ def extend_client_subscription(
 ) -> ClientExtendResponse | JSONResponse:
     manager = get_manager(payload.server_id)
     try:
-        manager.extend_client(payload.client_name, payload.expires)
+        current_expiry = manager.get_client_expiry(payload.client_name)
+        target_dt = parse_prolong_until(payload.prolong_until)
+        extension = calculate_extension(
+            target_dt=target_dt,
+            current_expiry_ts=current_expiry,
+            now_ts=int(time.time()),
+        )
+        manager.extend_client(payload.client_name, extension.duration)
+        new_expiry = manager.get_client_expiry(payload.client_name)
     except AmneziaWGError as exc:
         error_text = str(exc)
         if "не найден" in error_text.lower():
             return api_error(404, error_text)
         return api_error(400, error_text)
+    except SubscriptionError as exc:
+        return api_error(400, str(exc))
+
+    if new_expiry is None:
+        return api_error(500, "Не удалось получить новый срок действия клиента после продления.")
 
     return ClientExtendResponse(
         succsess=True,
         server_id=payload.server_id,
         client_name=payload.client_name,
-        expires=payload.expires,
+        prolong_until=payload.prolong_until,
+        applied_duration=extension.duration,
+        expires_at=format_timestamp(new_expiry),
     )
 
 
