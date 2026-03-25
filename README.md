@@ -127,7 +127,7 @@ curl -X POST http://127.0.0.1:8000/api/clients \
   -d '{
     "server_id": 1,
     "client_name": "egor",
-    "expires": "7d"
+    "expires_until": "01.04.2026"
   }'
 ```
 

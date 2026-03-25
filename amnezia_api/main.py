@@ -130,9 +130,21 @@ def create_client(
     output_dir = settings.storage_dir / f"server_{payload.server_id}" / payload.client_name
 
     try:
-        manager.add_client(payload.client_name, expires=payload.expires)
+        expires_duration = None
+        if payload.expires_until:
+            target_dt = parse_prolong_until(payload.expires_until)
+            extension = calculate_extension(
+                target_dt=target_dt,
+                current_expiry_ts=None,
+                now_ts=int(time.time()),
+            )
+            expires_duration = extension.duration
+
+        manager.add_client(payload.client_name, expires=expires_duration)
         config_path, png_path = manager.fetch_client_bundle(payload.client_name, output_dir=output_dir)
     except AmneziaWGError as exc:
+        return api_error(400, str(exc))
+    except SubscriptionError as exc:
         return api_error(400, str(exc))
 
     conf_id = uuid.uuid4().hex

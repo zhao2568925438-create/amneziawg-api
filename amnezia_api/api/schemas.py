@@ -40,7 +40,7 @@ class ClientListItem(BaseModel):
 class ClientCreate(BaseModel):
     server_id: int
     client_name: str = Field(min_length=1)
-    expires: str | None = None
+    expires_until: str | None = None
 
 
 class ClientExtend(BaseModel):
