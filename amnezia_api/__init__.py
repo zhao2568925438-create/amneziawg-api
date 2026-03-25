@@ -1,0 +1,1 @@
+"""AmneziaWG API package."""

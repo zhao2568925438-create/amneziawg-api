@@ -1,0 +1,21 @@
+services:
+  amneziawg-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: amneziawg-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./storage:/app/storage
+      - ${HOME}/.ssh:/root/.ssh:ro
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true
+    name: edge
