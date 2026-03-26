@@ -21,6 +21,7 @@ class Settings:
     ssh_multiplexing_enabled: bool
     ssh_control_dir: Path
     ssh_control_persist: str
+    server_queue_timeout: int
 
 
 @lru_cache(maxsize=1)
@@ -34,4 +35,5 @@ def get_settings() -> Settings:
         ssh_multiplexing_enabled=os.getenv("SSH_MULTIPLEXING_ENABLED", "true").lower() in {"1", "true", "yes", "on"},
         ssh_control_dir=Path(os.getenv("SSH_CONTROL_DIR", "/tmp/amneziawg-ssh")).expanduser(),
         ssh_control_persist=os.getenv("SSH_CONTROL_PERSIST", "10m"),
+        server_queue_timeout=int(os.getenv("SERVER_QUEUE_TIMEOUT", "120")),
     )

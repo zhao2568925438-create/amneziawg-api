@@ -26,6 +26,7 @@ from amnezia_api.repositories.artifact_repository import ArtifactRepository
 from amnezia_api.repositories.server_repository import ServerRepository
 from amnezia_api.services.amneziawg_manager import AmneziaWGError, AmneziaWGManager, SSHConfig
 from amnezia_api.services.artifact_service import ArtifactService
+from amnezia_api.services.server_queue import ServerCommandQueue, ServerQueueTimeoutError
 from amnezia_api.services.subscription_service import (
     SubscriptionError,
     calculate_extension,
@@ -39,6 +40,7 @@ database = Database(settings.database_path)
 server_repository = ServerRepository(database)
 artifact_repository = ArtifactRepository(database)
 artifact_service = ArtifactService(artifact_repository)
+server_queue = ServerCommandQueue()
 
 app = FastAPI(title="AmneziaWG API", version="0.1.0")
 
@@ -75,12 +77,31 @@ def get_manager(server_id: int) -> AmneziaWGManager:
 def build_server_response(server: dict[str, object], include_connectivity: bool = False) -> ServerResponse:
     payload = dict(server)
     if include_connectivity:
-        payload.update(manager_from_server(server).check_connectivity())
+        try:
+            payload.update(
+                run_on_server_queue(
+                    int(server["id"]),
+                    lambda: manager_from_server(server).check_connectivity(),
+                )
+            )
+        except ServerQueueTimeoutError:
+            payload.update(
+                {
+                    "is_reachable": False,
+                    "status": "busy",
+                    "status_label": "Сервер занят выполнением другой операции",
+                }
+            )
     return ServerResponse(**payload)
 
 
 def build_artifact_url(request: Request, artifact_id: str) -> str:
     return str(request.url_for("download_artifact", artifact_id=artifact_id))
+
+
+def run_on_server_queue(server_id: int, operation):
+    with server_queue.acquire(server_id, timeout=settings.server_queue_timeout):
+        return operation()
 
 
 @app.on_event("startup")
@@ -108,9 +129,11 @@ def list_servers(_: None = Depends(auth_dependency)) -> list[ServerResponse]:
 def list_clients(server_id: int, _: None = Depends(auth_dependency)) -> ClientListResponse | JSONResponse:
     manager = get_manager(server_id)
     try:
-        data = manager.list_clients_structured()
+        data = run_on_server_queue(server_id, manager.list_clients_structured)
     except AmneziaWGError as exc:
         return api_error(400, str(exc))
+    except ServerQueueTimeoutError as exc:
+        return api_error(429, str(exc))
 
     return ClientListResponse(
         succsess=True,
@@ -130,22 +153,27 @@ def create_client(
     output_dir = settings.storage_dir / f"server_{payload.server_id}" / payload.client_name
 
     try:
-        expires_duration = None
-        if payload.expires_until:
-            target_dt = parse_prolong_until(payload.expires_until)
-            extension = calculate_extension(
-                target_dt=target_dt,
-                current_expiry_ts=None,
-                now_ts=int(time.time()),
-            )
-            expires_duration = extension.duration
+        def operation():
+            expires_duration = None
+            if payload.expires_until:
+                target_dt = parse_prolong_until(payload.expires_until)
+                extension = calculate_extension(
+                    target_dt=target_dt,
+                    current_expiry_ts=None,
+                    now_ts=int(time.time()),
+                )
+                expires_duration = extension.duration
 
-        manager.add_client(payload.client_name, expires=expires_duration)
-        config_path, png_path = manager.fetch_client_bundle(payload.client_name, output_dir=output_dir)
+            manager.add_client(payload.client_name, expires=expires_duration)
+            return manager.fetch_client_bundle(payload.client_name, output_dir=output_dir)
+
+        config_path, png_path = run_on_server_queue(payload.server_id, operation)
     except AmneziaWGError as exc:
         return api_error(400, str(exc))
     except SubscriptionError as exc:
         return api_error(400, str(exc))
+    except ServerQueueTimeoutError as exc:
+        return api_error(429, str(exc))
 
     conf_id = uuid.uuid4().hex
     png_id = uuid.uuid4().hex
@@ -170,15 +198,19 @@ def extend_client_subscription(
 ) -> ClientExtendResponse | JSONResponse:
     manager = get_manager(payload.server_id)
     try:
-        current_expiry = manager.get_client_expiry(payload.client_name)
-        target_dt = parse_prolong_until(payload.prolong_until)
-        extension = calculate_extension(
-            target_dt=target_dt,
-            current_expiry_ts=current_expiry,
-            now_ts=int(time.time()),
-        )
-        manager.extend_client(payload.client_name, extension.duration)
-        new_expiry = manager.get_client_expiry(payload.client_name)
+        def operation():
+            current_expiry = manager.get_client_expiry(payload.client_name)
+            target_dt = parse_prolong_until(payload.prolong_until)
+            extension = calculate_extension(
+                target_dt=target_dt,
+                current_expiry_ts=current_expiry,
+                now_ts=int(time.time()),
+            )
+            manager.extend_client(payload.client_name, extension.duration)
+            new_expiry = manager.get_client_expiry(payload.client_name)
+            return extension, new_expiry
+
+        extension, new_expiry = run_on_server_queue(payload.server_id, operation)
     except AmneziaWGError as exc:
         error_text = str(exc)
         if "не найден" in error_text.lower():
@@ -186,6 +218,8 @@ def extend_client_subscription(
         return api_error(400, error_text)
     except SubscriptionError as exc:
         return api_error(400, str(exc))
+    except ServerQueueTimeoutError as exc:
+        return api_error(429, str(exc))
 
     if new_expiry is None:
         return api_error(500, "Не удалось получить новый срок действия клиента после продления.")
@@ -208,12 +242,14 @@ def delete_client(
 ) -> ClientDeleteResponse | JSONResponse:
     manager = get_manager(server_id)
     try:
-        manager.remove_client(client_name)
+        run_on_server_queue(server_id, lambda: manager.remove_client(client_name))
     except AmneziaWGError as exc:
         error_text = str(exc)
         if "не найден" in error_text.lower():
             return api_error(404, error_text)
         return api_error(400, error_text)
+    except ServerQueueTimeoutError as exc:
+        return api_error(429, str(exc))
 
     artifact_service.cleanup_client_artifacts(server_id, client_name)
     return ClientDeleteResponse(succsess=True, server_id=server_id, client_name=client_name)
