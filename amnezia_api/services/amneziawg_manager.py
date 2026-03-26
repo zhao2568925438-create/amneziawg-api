@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
+from amnezia_api.core.config import get_settings
 from amnezia_api.core.terminal import clean_terminal_output
 
 
@@ -33,6 +35,10 @@ class AmneziaWGManager:
         self.ssh = ssh
         self.manage_script_path = manage_script_path
         self.timeout = timeout
+        self.settings = get_settings()
+
+        if self.settings.ssh_multiplexing_enabled:
+            self.settings.ssh_control_dir.mkdir(parents=True, exist_ok=True)
 
     def add_client(self, name: str, expires: str | None = None) -> str:
         args = ["add", name]
@@ -141,11 +147,28 @@ class AmneziaWGManager:
             "-o",
             f"StrictHostKeyChecking={self.ssh.strict_host_key_checking}",
         ]
+        if self.settings.ssh_multiplexing_enabled:
+            command.extend(
+                [
+                    "-o",
+                    "ControlMaster=auto",
+                    "-o",
+                    f"ControlPersist={self.settings.ssh_control_persist}",
+                    "-o",
+                    f"ControlPath={self._control_path()}",
+                ]
+            )
         if self.ssh.identity_file:
             command.extend(["-i", self.ssh.identity_file])
         command.append(f"{self.ssh.user}@{self.ssh.host}")
         command.append(remote_command)
         return command
+
+    def _control_path(self) -> str:
+        digest = hashlib.sha256(
+            f"{self.ssh.user}@{self.ssh.host}:{self.ssh.port}".encode("utf-8")
+        ).hexdigest()[:16]
+        return str(self.settings.ssh_control_dir / f"mux_{digest}")
 
     def _parse_clients_table(self, raw_output: str) -> list[dict[str, str | bool | None]]:
         clients: list[dict[str, str | bool | None]] = []
