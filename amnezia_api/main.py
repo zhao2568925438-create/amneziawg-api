@@ -99,6 +99,22 @@ def build_artifact_url(request: Request, artifact_id: str) -> str:
     return str(request.url_for("download_artifact", artifact_id=artifact_id))
 
 
+def build_client_file_map(server_id: int, request: Request) -> dict[str, ArtifactLinks]:
+    artifacts = artifact_repository.list_by_server(server_id)
+    files_by_client: dict[str, ArtifactLinks] = {}
+
+    for artifact in artifacts:
+        client_name = str(artifact["client_name"])
+        links = files_by_client.setdefault(client_name, ArtifactLinks())
+        file_url = build_artifact_url(request, str(artifact["id"]))
+        if artifact["file_type"] == "conf":
+            links.conf_url = file_url
+        elif artifact["file_type"] == "png":
+            links.png_url = file_url
+
+    return files_by_client
+
+
 def run_on_server_queue(server_id: int, operation):
     with server_queue.acquire(server_id, timeout=settings.server_queue_timeout):
         return operation()
@@ -126,7 +142,11 @@ def list_servers(_: None = Depends(auth_dependency)) -> list[ServerResponse]:
 
 
 @app.get("/api/clients/{server_id}", response_model=ClientListResponse)
-def list_clients(server_id: int, _: None = Depends(auth_dependency)) -> ClientListResponse | JSONResponse:
+def list_clients(
+    server_id: int,
+    request: Request,
+    _: None = Depends(auth_dependency),
+) -> ClientListResponse | JSONResponse:
     manager = get_manager(server_id)
     try:
         data = run_on_server_queue(server_id, manager.list_clients_structured)
@@ -135,11 +155,20 @@ def list_clients(server_id: int, _: None = Depends(auth_dependency)) -> ClientLi
     except ServerQueueTimeoutError as exc:
         return api_error(429, str(exc))
 
+    files_by_client = build_client_file_map(server_id, request)
+    clients = []
+    for client in data["clients"]:
+        client_payload = dict(client)
+        client_files = files_by_client.get(str(client["name"]))
+        if client_files is not None:
+            client_payload["files"] = client_files
+        clients.append(ClientListItem(**client_payload))
+
     return ClientListResponse(
         succsess=True,
         server_id=server_id,
         count=data["count"],
-        clients=[ClientListItem(**client) for client in data["clients"]],
+        clients=clients,
     )
 
 

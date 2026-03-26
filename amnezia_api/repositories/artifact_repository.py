@@ -65,3 +65,15 @@ class ArtifactRepository:
                 "DELETE FROM artifacts WHERE server_id = ? AND client_name = ?",
                 (server_id, client_name),
             )
+
+    def list_by_server(self, server_id: int) -> list[dict[str, Any]]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM artifacts
+                WHERE server_id = ?
+                ORDER BY created_at ASC
+                """,
+                (server_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]

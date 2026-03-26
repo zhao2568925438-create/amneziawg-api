@@ -35,6 +35,7 @@ class ClientListItem(BaseModel):
     status: str
     status_label: str
     expires_in: str | None = None
+    files: "ArtifactLinks | None" = None
 
 
 class ClientCreate(BaseModel):
@@ -56,8 +57,8 @@ class ClientDeleteResponse(BaseModel):
 
 
 class ArtifactLinks(BaseModel):
-    conf_url: str
-    png_url: str
+    conf_url: str | None = None
+    png_url: str | None = None
 
 
 class ClientCreateResponse(BaseModel):
