@@ -14,6 +14,7 @@ manage expiration dates, and deliver ready-to-import configs and QR codes.
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-persistence-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![SSH](https://img.shields.io/badge/Transport-SSH-111827?logo=gnubash&logoColor=white)](#how-it-works)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F4C430.svg)](LICENSE)
 
 [English](README.md) · [Русский](README.ru.md) · [Quick start](#quick-start) · [API](#api-reference) · [Security](#security)
 
@@ -385,5 +386,6 @@ is an independent API integration.
 
 ## License
 
-No license file is currently included. Add one before accepting external
-contributions or distributing modified versions.
+Distributed under the [MIT License](LICENSE). The bundled management script
+retains its upstream copyright and license notice in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
