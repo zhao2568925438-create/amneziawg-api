@@ -84,7 +84,7 @@ Each managed VPN server:
 ### 1. Configure
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/taphix/amneziawg-api.git
 cd amneziawg-api
 cp .env.example .env
 ```

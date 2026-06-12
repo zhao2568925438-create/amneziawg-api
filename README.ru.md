@@ -84,7 +84,7 @@ API не реализует VPN-протокол. Он вызывает `manage_
 ### 1. Настройка
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/taphix/amneziawg-api.git
 cd amneziawg-api
 cp .env.example .env
 ```
